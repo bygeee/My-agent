@@ -41,8 +41,9 @@ export async function replyToTask(
   const task = await loadTask(taskId);
   setRuntimeAllowedTargets(task, userInput);
   const provider = new ResponsesProvider();
+  const instructions = buildSystemPrompt({ task });
   const request = {
-    instructions: buildSystemPrompt({ task }),
+    instructions,
     input: buildInitialInput(task, userInput),
     maxOutputTokens: 4096,
     tools: buildResponseTools()
@@ -56,7 +57,7 @@ export async function replyToTask(
     for (const call of response.functionCalls) {
       const input = buildToolRunRequest(call, task.mode);
       observer.onToolCall?.(call, input);
-      const trace = runToolCall(call, input);
+      const trace = await runToolCall(call, input);
       toolTraces.push(trace);
       observer.onToolResult?.(trace);
       toolOutputs.push({
@@ -68,6 +69,7 @@ export async function replyToTask(
     const followUpInput = buildToolFollowUpInput(task, userInput, toolOutputs, toolTraces);
     observer.onRequest?.(followUpInput);
     response = await provider.create({
+      instructions,
       input: followUpInput,
       maxOutputTokens: 4096,
       tools: buildResponseTools()
@@ -141,37 +143,11 @@ function extractHosts(text: string) {
 }
 
 function buildResponseTools(): ResponsesTool[] {
-  return new ToolRegistry().list().map((tool) => ({
+  return new ToolRegistry().list({ availableOnly: true }).map((tool) => ({
     type: "function",
     name: tool.name,
     description: tool.description,
-    parameters: {
-      type: "object",
-      additionalProperties: false,
-      required: ["mode", "args"],
-      properties: {
-        mode: {
-          type: "string",
-          description: "Execution mode, usually ctf_challenge or local_lab."
-        },
-        target: {
-          type: "string",
-          description: "Authorized target URL/host when the tool requires scope."
-        },
-        artifact_path: {
-          type: "string",
-          description: "Uploaded artifact basename when the tool should inspect an artifact."
-        },
-        args: {
-          type: "array",
-          description: "Additional CLI arguments for this registered tool.",
-          maxItems: tool.max_args,
-          items: {
-            type: "string"
-          }
-        }
-      }
-    }
+    parameters: buildResponseToolParameters(tool)
   }));
 }
 
@@ -183,10 +159,13 @@ function buildToolRunRequest(call: ResponsesFunctionCall, defaultMode: string): 
   const request: ToolRunRequest = {
     tool: call.name,
     mode,
-    args
+    args,
+    input: call.arguments
   };
   if (typeof call.arguments.target === "string") {
     request.target = call.arguments.target;
+  } else if (typeof call.arguments.url === "string") {
+    request.target = call.arguments.url;
   }
   if (typeof call.arguments.artifact_path === "string") {
     request.artifact_path = call.arguments.artifact_path;
@@ -194,8 +173,23 @@ function buildToolRunRequest(call: ResponsesFunctionCall, defaultMode: string): 
   return request;
 }
 
-function runToolCall(call: ResponsesFunctionCall, input: ToolRunRequest): ToolTrace {
-  const result = new ToolDispatcher().run(input);
+type ListedTool = ReturnType<ToolRegistry["list"]>[number];
+
+function buildResponseToolParameters(tool: ListedTool) {
+  const schema = tool.input_schema;
+  const properties = isRecord(schema.properties) ? { ...schema.properties } : {};
+  delete properties.tool;
+
+  return {
+    type: "object",
+    additionalProperties: schema.additionalProperties,
+    required: schema.required.filter((field) => field !== "tool"),
+    properties
+  };
+}
+
+async function runToolCall(call: ResponsesFunctionCall, input: ToolRunRequest): Promise<ToolTrace> {
+  const result = await new ToolDispatcher().run(input);
   const outputText = typeof result.output === "string" ? result.output.slice(0, 8000) : undefined;
   const output: ToolTrace["output"] = {
     allowed: result.allowed
@@ -227,9 +221,15 @@ function runToolCall(call: ResponsesFunctionCall, input: ToolRunRequest): ToolTr
 }
 
 function buildInitialInput(task: StoredTask, userInput: string) {
-  const transcript = task.comments
+  const comments = [...task.comments];
+  const latest = comments.at(-1);
+  if (latest && latest.by !== "assistant" && latest.text === userInput) {
+    comments.pop();
+  }
+
+  const transcript = comments
     .slice(-20)
-    .map((comment) => `${comment.by}: ${comment.text}`)
+    .map((comment) => `${comment.by === "assistant" ? "assistant" : "user"}: ${comment.text}`)
     .join("\n");
   return [
     `Task prompt: ${task.prompt}`,
@@ -263,4 +263,8 @@ function buildToolFollowUpInput(
     })), null, 2),
     "Use these tool results to answer the user. If more tools are needed, call them."
   ].join("\n\n");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

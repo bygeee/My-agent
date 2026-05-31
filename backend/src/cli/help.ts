@@ -11,7 +11,7 @@ Usage:
   ctf-agent task artifact <task_id> --path FILE [--label TEXT]
   ctf-agent task cancel <task_id>
   ctf-agent tool list [--json]
-  ctf-agent tool run <tool> [--mode local_lab] [--target TARGET] [--artifact-path FILE] -- [args...]
+  ctf-agent tool run <tool> [--mode local_lab] [--target TARGET] [--artifact-path FILE] [--input JSON] -- [args...]
   ctf-agent hub info
   ctf-agent hub channels
   ctf-agent hub send --channel handoff --message TEXT [--metadata '{"type":"note"}']

@@ -18,14 +18,14 @@ function findRepoDir() {
 }
 
 const repoDir = findRepoDir();
-const backendDir = existsSync(path.join(repoDir, "backend", "package.json")) ? path.join(repoDir, "backend") : repoDir;
+const defaultRuntimeDir = "D:/test-agent";
 loadLocalEnv(repoDir);
 
 export const env = {
   baseDir: resolveEnvPath(process.env.Z3GH0NE_BASE_DIR, repoDir),
   configDir: resolveEnvPath(process.env.Z3GH0NE_CONFIG_DIR, path.join(repoDir, "config")),
-  dataDir: resolveEnvPath(process.env.Z3GH0NE_DATA_DIR, path.join(backendDir, ".runtime-data")),
-  logDir: resolveEnvPath(process.env.Z3GH0NE_LOG_DIR, path.join(backendDir, ".runtime-logs")),
+  dataDir: resolveEnvPath(process.env.Z3GH0NE_DATA_DIR, defaultRuntimeDir),
+  logDir: resolveEnvPath(process.env.Z3GH0NE_LOG_DIR, path.join(defaultRuntimeDir, "logs")),
   model: process.env.Z3GH0NE_MODEL ?? "claude-opus-4-6",
   llmMode: process.env.Z3GH0NE_LLM_MODE ?? "external_local_cc",
   adminUser: process.env.Z3GH0NE_ADMIN_USER ?? "agent",
@@ -42,13 +42,13 @@ export const env = {
     ?? process.env.Z3GH0NE_OPENAI_KEY
     ?? process.env.OPENAI_API_KEY
     ?? "",
-  openaiModel: process.env.Z3GH0NE_OPENAI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-5.4",
+  openaiModel: process.env.Z3GH0NE_OPENAI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-5.5",
   openaiReasoningEffort: process.env.Z3GH0NE_OPENAI_REASONING_EFFORT
     ?? process.env.OPENAI_REASONING_EFFORT
     ?? "xhigh",
   port: Number.parseInt(process.env.PORT ?? "8080", 10),
-  uploadsDir: resolveEnvPath(process.env.Z3GH0NE_UPLOADS_DIR, path.join(backendDir, ".runtime-data", "uploads")),
-  workspacesDir: resolveEnvPath(process.env.Z3GH0NE_WORKSPACES_DIR, path.join(backendDir, ".runtime-data", "workspaces"))
+  uploadsDir: resolveEnvPath(process.env.Z3GH0NE_UPLOADS_DIR, path.join(defaultRuntimeDir, "uploads")),
+  workspacesDir: resolveEnvPath(process.env.Z3GH0NE_WORKSPACES_DIR, path.join(defaultRuntimeDir, "workspaces"))
 };
 
 function loadLocalEnv(rootDir: string) {

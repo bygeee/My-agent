@@ -69,6 +69,26 @@ tools:
     max_args: 4
     max_arg_length: 260
     output_limit: 20000
+  http_get_safe:
+    description: "Fetch an explicitly scoped HTTP/HTTPS URL and return status, headers, and clipped body content. Use this first for web CTF pages and static resources."
+    command: ["builtin:http_get"]
+    risk: medium
+    permissions: ["network:targeted"]
+    requires_scope: true
+    timeout: 30
+    max_args: 1
+    max_arg_length: 1000
+    output_limit: 30000
+  http_head_safe:
+    description: "Send an explicitly scoped HTTP/HTTPS HEAD request and return status and headers."
+    command: ["builtin:http_head"]
+    risk: medium
+    permissions: ["network:targeted"]
+    requires_scope: true
+    timeout: 20
+    max_args: 1
+    max_arg_length: 1000
+    output_limit: 12000
   whatweb_safe:
     description: "Fingerprint an explicitly scoped local or authorized web target."
     command: ["whatweb", "--no-errors"]
@@ -80,13 +100,13 @@ tools:
     max_arg_length: 260
     output_limit: 20000
   nmap_safe:
-    description: "Run a constrained service-version scan against an allowed target."
+    description: "Run a constrained service-version scan against an allowed target. Do not repeat the built-in -sV flag; use args for optional flags such as -Pn or -p PORT."
     command: ["nmap", "-sV", "--top-ports", "100"]
     risk: medium
     permissions: ["process:spawn", "network:targeted"]
     requires_scope: true
     timeout: 120
-    max_args: 4
+    max_args: 6
     max_arg_length: 260
     output_limit: 20000
   ffuf_safe:

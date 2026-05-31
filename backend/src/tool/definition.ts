@@ -4,7 +4,11 @@ export type ToolPermission =
   | "filesystem:read"
   | "filesystem:write"
   | "process:spawn"
-  | "network:targeted";
+  | "network:targeted"
+  | "state:read"
+  | "state:write"
+  | "mcp:read"
+  | "mcp:write";
 
 export type ToolManifest = {
   id: string;
@@ -17,13 +21,14 @@ export type ToolManifest = {
   max_args: number;
   max_arg_length: number;
   output_limit: number;
+  source?: string;
 };
 
 export type ToolInputSchema = {
   type: "object";
   properties: Record<string, unknown>;
   required: string[];
-  additionalProperties: boolean;
+  additionalProperties: boolean | Record<string, unknown>;
 };
 
 export type ToolDefinition<Input = unknown, Output = unknown> = ToolManifest & {

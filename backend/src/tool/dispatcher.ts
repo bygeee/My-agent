@@ -4,8 +4,9 @@ import { env } from "../lib/env.js";
 import { PolicyGate } from "../core/policy.js";
 import { ScopeValidator } from "../core/scope.js";
 import { ToolRegistry } from "./registry.js";
-import type { ToolResult } from "./definition.js";
+import type { ToolDefinition, ToolResult } from "./definition.js";
 import type { ToolRunRequest } from "../types/tool.js";
+import { runBuiltinTool } from "./builtin.js";
 
 const dangerousArgPattern = /[;&|`$]|\.\.\/|\/etc\/|\/proc\/|\/sys\//;
 
@@ -18,7 +19,7 @@ export class ToolDispatcher {
     return { allowed: false, error_code: code, error: message, summary: message };
   }
 
-  run(request: ToolRunRequest): ToolResult {
+  async run(request: ToolRunRequest): Promise<ToolResult> {
     const tool = this.registry.get(request.tool);
     if (!tool) {
       return this.error("unknown_tool", `tool '${request.tool}' not found in registry`);
@@ -29,18 +30,19 @@ export class ToolDispatcher {
       return this.error("policy_denied", policyCheck.reason);
     }
 
-    if (request.target) {
-      const targetPolicy = this.policy.checkText(request.target);
+    const scopeTarget = inferScopeTarget(tool, request);
+    if (scopeTarget) {
+      const targetPolicy = this.policy.checkText(scopeTarget);
       if (!targetPolicy.allowed) {
         return this.error("policy_denied", targetPolicy.reason);
       }
     }
 
     if (tool.requires_scope) {
-      if (!request.target) {
+      if (!scopeTarget) {
         return this.error("scope_missing", "this tool requires a target within allowed scope");
       }
-      const decision = this.scope.allowed(request.target, request.mode);
+      const decision = this.scope.allowed(scopeTarget, request.mode);
       if (!decision.allowed) {
         return this.error("scope_denied", decision.reason);
       }
@@ -52,6 +54,16 @@ export class ToolDispatcher {
     }
 
     const command = [...tool.command];
+    const binary = command[0];
+
+    if (binary?.startsWith("builtin:")) {
+      try {
+        return await runBuiltinTool(tool, request);
+      } catch (error) {
+        const message = error instanceof Error ? error.message.slice(0, 300) : "builtin tool failed";
+        return this.error("builtin_error", message);
+      }
+    }
 
     if (request.artifact_path) {
       const safeName = path.basename(request.artifact_path);
@@ -71,19 +83,19 @@ export class ToolDispatcher {
 
     command.push(...request.args.slice(0, tool.max_args));
 
-    const [binary, ...args] = command;
-    if (!binary) {
+    const [spawnBinary, ...args] = command;
+    if (!spawnBinary) {
       return this.error("invalid_tool", "tool command is empty");
     }
 
     try {
-      const result = spawnSync(binary, args, {
+      const result = spawnSync(spawnBinary, args, {
         cwd: env.workspacesDir,
         timeout: tool.timeout * 1000,
         encoding: "utf8"
       });
       if (result.error) {
-        if (result.error.name === "ETIMEDOUT") {
+        if (isTimeoutError(result.error)) {
           return this.error("timeout", `tool exceeded ${tool.timeout}s timeout`);
         }
         if (/ENOENT/.test(result.error.message)) {
@@ -103,7 +115,7 @@ export class ToolDispatcher {
         timeout_used: tool.timeout
       };
     } catch (error) {
-      if (error instanceof Error && error.name === "ETIMEDOUT") {
+      if (error instanceof Error && isTimeoutError(error)) {
         return this.error("timeout", `tool exceeded ${tool.timeout}s timeout`);
       }
       if (error instanceof Error && /ENOENT/.test(error.message)) {
@@ -112,6 +124,10 @@ export class ToolDispatcher {
       return this.error("exec_error", error instanceof Error ? error.message.slice(0, 200) : "unknown exec error");
     }
   }
+}
+
+function isTimeoutError(error: Error) {
+  return error.name === "ETIMEDOUT" || /ETIMEDOUT|timed out|timeout/i.test(error.message);
 }
 
 function validateArgs(args: string[], maxArgs: number, maxArgLength: number) {
@@ -127,4 +143,21 @@ function validateArgs(args: string[], maxArgs: number, maxArgLength: number) {
     }
   }
   return null;
+}
+
+function inferScopeTarget(tool: ToolDefinition, request: ToolRunRequest) {
+  if (request.target) {
+    return request.target;
+  }
+  if (!tool.requires_scope) {
+    return undefined;
+  }
+  const input = request.input ?? {};
+  for (const key of ["target", "url", "uri"]) {
+    const value = input[key];
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+  return undefined;
 }

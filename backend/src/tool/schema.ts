@@ -5,7 +5,11 @@ const validPermissions = new Set<ToolPermission>([
   "filesystem:read",
   "filesystem:write",
   "process:spawn",
-  "network:targeted"
+  "network:targeted",
+  "state:read",
+  "state:write",
+  "mcp:read",
+  "mcp:write"
 ]);
 
 export function buildToolDefinition(id: string, manifest: Partial<ToolManifest>): ToolDefinition {
@@ -16,35 +20,73 @@ export function buildToolDefinition(id: string, manifest: Partial<ToolManifest>)
 
   const risk = normalizeRisk(manifest.risk);
   const permissions = normalizePermissions(manifest.permissions);
+  const timeout = normalizePositiveNumber(manifest.timeout, 30, "timeout");
+  const maxArgs = normalizePositiveNumber(manifest.max_args, 8, "max_args");
+  const maxArgLength = normalizePositiveNumber(manifest.max_arg_length, 500, "max_arg_length");
 
-  return {
+  const definition: ToolDefinition = {
     id,
     description: normalizeDescription(id, manifest.description),
     command,
     risk,
     permissions,
     requires_scope: Boolean(manifest.requires_scope),
-    timeout: normalizePositiveNumber(manifest.timeout, 30, "timeout"),
-    max_args: normalizePositiveNumber(manifest.max_args, 8, "max_args"),
-    max_arg_length: normalizePositiveNumber(manifest.max_arg_length, 500, "max_arg_length"),
+    timeout,
+    max_args: maxArgs,
+    max_arg_length: maxArgLength,
     output_limit: normalizePositiveNumber(manifest.output_limit, 20000, "output_limit"),
-    inputSchema: {
-      type: "object",
-      required: ["tool", "mode", "args"],
-      additionalProperties: false,
-      properties: {
-        tool: { type: "string", const: id },
-        mode: { type: "string" },
-        target: { type: "string" },
-        artifact_path: { type: "string" },
-        args: {
-          type: "array",
-          maxItems: manifest.max_args ?? 8,
-          items: { type: "string", maxLength: manifest.max_arg_length ?? 500 }
-        }
+    inputSchema: buildConfiguredToolInputSchema(command, Boolean(manifest.requires_scope), maxArgs, maxArgLength)
+  };
+
+  if (manifest.source !== undefined) {
+    definition.source = manifest.source;
+  }
+  return definition;
+}
+
+function buildConfiguredToolInputSchema(command: string[], requiresScope: boolean, maxArgs: number, maxArgLength: number) {
+  const builtin = command[0];
+  if (builtin === "builtin:http_get" || builtin === "builtin:http_head") {
+    return buildHttpInputSchema(builtin, maxArgs, maxArgLength);
+  }
+  return {
+    type: "object",
+    required: requiresScope ? ["mode", "target", "args"] : ["mode", "args"],
+    additionalProperties: false,
+    properties: {
+      mode: { type: "string" },
+      target: { type: "string" },
+      artifact_path: { type: "string" },
+      args: {
+        type: "array",
+        maxItems: maxArgs,
+        items: { type: "string", maxLength: maxArgLength }
       }
     }
-  };
+  } satisfies ToolDefinition["inputSchema"];
+}
+
+function buildHttpInputSchema(builtin: string, maxArgs: number, maxArgLength: number) {
+  return {
+    type: "object",
+    required: ["mode", "target"],
+    additionalProperties: false,
+    properties: {
+      mode: { type: "string" },
+      target: { type: "string" },
+      args: {
+        type: "array",
+        description: "Optional same-origin path as the first item.",
+        maxItems: maxArgs,
+        items: { type: "string", maxLength: maxArgLength }
+      },
+      headers: {
+        type: "object",
+        additionalProperties: { type: "string" },
+        properties: {}
+      },
+    }
+  } satisfies ToolDefinition["inputSchema"];
 }
 
 function normalizeDescription(id: string, value: unknown) {

@@ -27,12 +27,17 @@ to the active task and sent through the Responses API. Slash commands such as
 
 `bun run dev` opens chat directly. `bun run cli -- ...` runs one-off commands.
 
+Runtime task history, chat comments, hub messages, uploads, workspaces, and logs
+default to `D:/test-agent`. Override with `Z3GH0NE_DATA_DIR`,
+`Z3GH0NE_UPLOADS_DIR`, `Z3GH0NE_WORKSPACES_DIR`, or `Z3GH0NE_LOG_DIR` when
+needed.
+
 Responses API defaults are read from `.env.local`:
 
 ```text
 Z3GH0NE_OPENAI_API_URL=https://api.psydo.top
 Z3GH0NE_OPENAI_API_KEY=<local key>
-Z3GH0NE_OPENAI_MODEL=gpt-5.4
+Z3GH0NE_OPENAI_MODEL=gpt-5.5
 Z3GH0NE_OPENAI_REASONING_EFFORT=xhigh
 ```
 

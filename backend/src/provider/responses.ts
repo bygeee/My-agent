@@ -83,29 +83,50 @@ export class ResponsesProvider {
       body.tools = request.tools;
     }
 
-    const response = await fetch(resolveResponsesUrl(this.apiUrl), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
+    const url = resolveResponsesUrl(this.apiUrl);
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
 
-    const data = await response.json() as Record<string, unknown>;
-    if (!response.ok) {
-      const detail = readError(data);
-      throw new Error(`Responses API failed (${response.status}): ${detail}`);
+        const data = await readJsonResponse(response);
+        if (!response.ok) {
+          const detail = readError(data);
+          const error = new Error(`Responses API failed (${response.status}): ${detail}`);
+          if (attempt < 3 && transientStatus(response.status)) {
+            lastError = error;
+            await delay(retryDelay(attempt));
+            continue;
+          }
+          throw error;
+        }
+
+        return {
+          id: typeof data.id === "string" ? data.id : null,
+          text: extractOutputText(data),
+          model: typeof data.model === "string" ? data.model : this.model,
+          usage: isRecord(data.usage) ? data.usage : {},
+          raw: data,
+          functionCalls: extractFunctionCalls(data)
+        };
+      } catch (error) {
+        if (attempt < 3 && transientError(error)) {
+          lastError = error;
+          await delay(retryDelay(attempt));
+          continue;
+        }
+        throw error;
+      }
     }
 
-    return {
-      id: typeof data.id === "string" ? data.id : null,
-      text: extractOutputText(data),
-      model: typeof data.model === "string" ? data.model : this.model,
-      usage: isRecord(data.usage) ? data.usage : {},
-      raw: data,
-      functionCalls: extractFunctionCalls(data)
-    };
+    throw lastError instanceof Error ? lastError : new Error("Responses API failed");
   }
 }
 
@@ -187,6 +208,38 @@ function readError(data: Record<string, unknown>) {
     return error.message.slice(0, 500);
   }
   return JSON.stringify(data).slice(0, 500);
+}
+
+async function readJsonResponse(response: Response) {
+  const text = await response.text();
+  if (!text.trim()) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return isRecord(parsed) ? parsed : {};
+  } catch {
+    return { error: { message: text.slice(0, 500) } };
+  }
+}
+
+function transientStatus(status: number) {
+  return status === 408 || status === 409 || status === 429 || (status >= 500 && status <= 599);
+}
+
+function transientError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return /timeout|timed out|temporarily unavailable|econnreset|econnrefused|network/i.test(error.message);
+}
+
+function retryDelay(attempt: number) {
+  return 500 * 2 ** (attempt - 1);
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

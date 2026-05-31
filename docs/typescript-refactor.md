@@ -47,7 +47,7 @@ bun run serve
 - Bun runs TypeScript entrypoints directly in development and `bun build` emits production bundles under `backend/dist`.
 - The runtime has no application dependencies; TypeScript is a development dependency for build and typecheck.
 - Runtime config defaults to the root `config/` folder.
-- Runtime data and logs default to `backend/.runtime-data/` and `backend/.runtime-logs/` for reliable local Node execution.
+- Runtime data and logs default to `D:/test-agent` for reliable local CLI execution outside the source tree.
 
 ## Transitional note
 

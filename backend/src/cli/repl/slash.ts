@@ -162,7 +162,7 @@ const slashCommands: SlashCommand[] = [
   {
     name: "verbose",
     usage: "/verbose [on|off]",
-    description: "Toggle request and tool-call logs.",
+    description: "Toggle detailed execution input/output logs.",
     run({ state, args, output }) {
       const value = args.trim().toLowerCase();
       if (value === "on") {

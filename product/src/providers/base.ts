@@ -40,7 +40,7 @@ export class OpenAICompatibleProvider implements BaseProvider {
       ?? process.env.Z3GH0NE_OPENAI_BASE_URL
       ?? process.env.OPENAI_BASE_URL
       ?? "https://api.psydo.top",
-    model = process.env.Z3GH0NE_OPENAI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-5.4",
+    model = process.env.Z3GH0NE_OPENAI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-5.5",
     private readonly reasoningEffort = process.env.Z3GH0NE_OPENAI_REASONING_EFFORT
       ?? process.env.OPENAI_REASONING_EFFORT
       ?? "xhigh"

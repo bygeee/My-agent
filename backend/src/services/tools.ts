@@ -8,7 +8,7 @@ export function listTools() {
 }
 
 export async function runTool(req: ToolRunRequest, user: string) {
-  const result = new ToolDispatcher().run(req);
+  const result = await new ToolDispatcher().run(req);
   await audit("tool_run", {
     user,
     tool: req.tool,
