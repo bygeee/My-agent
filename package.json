@@ -8,9 +8,11 @@
     "product"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace backend",
+    "dev": "npm run build --workspace backend && node backend/dist/cli.js",
+    "cli": "npm run build --workspace backend && node backend/dist/cli.js",
     "build": "npm run build --workspaces --if-present",
-    "start": "npm run start --workspace backend",
+    "start": "npm run build --workspace backend && node backend/dist/cli.js",
+    "serve": "npm run serve --workspace backend",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "smoke": "npm run smoke --workspace backend"
   },

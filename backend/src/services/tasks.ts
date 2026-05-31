@@ -52,15 +52,15 @@ export type StoredTask = {
 };
 
 export type TaskListOptions = {
-  status?: string;
-  mode?: string;
-  owner?: string;
-  limit?: number | string;
+  status?: string | undefined;
+  mode?: string | undefined;
+  owner?: string | undefined;
+  limit?: number | string | undefined;
 };
 
 export type TaskArtifactInput = {
   path: string;
-  label?: string;
+  label?: string | undefined;
 };
 
 export function tasksDir() {

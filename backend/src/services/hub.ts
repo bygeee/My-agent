@@ -9,10 +9,10 @@ import { audit } from "../core/audit.js";
 import { channels, type Channel, type HubMessageInput } from "../types/hub.js";
 
 export type HubMessageQuery = {
-  limit?: number | string;
-  sender?: string;
-  msg_type?: string;
-  since?: string;
+  limit?: number | string | undefined;
+  sender?: string | undefined;
+  msg_type?: string | undefined;
+  since?: string | undefined;
 };
 
 export function getHubInfo(user: string) {
