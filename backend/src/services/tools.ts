@@ -1,6 +1,6 @@
 import { audit } from "../core/audit.js";
-import { ToolRegistry } from "../tools/registry.js";
-import { ToolDispatcher } from "../tools/dispatcher.js";
+import { ToolRegistry } from "../tool/registry.js";
+import { ToolDispatcher } from "../tool/dispatcher.js";
 import type { ToolRunRequest } from "../types/tool.js";
 
 export function listTools() {

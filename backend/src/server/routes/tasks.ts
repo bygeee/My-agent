@@ -1,7 +1,7 @@
-import type { AppInstance } from "../server.js";
-import { HttpError, parseOrThrow } from "../lib/http.js";
-import { requireToken } from "../core/auth.js";
-import { taskCommentSchema, taskRequestSchema, taskStatusUpdateSchema } from "../types/task.js";
+import type { AppInstance } from "../../server.js";
+import { HttpError, parseOrThrow } from "../../lib/http.js";
+import { requireToken } from "../../core/auth.js";
+import { taskCommentSchema, taskRequestSchema, taskStatusUpdateSchema } from "../../types/task.js";
 import {
   addTaskArtifact,
   addTaskComment,
@@ -10,7 +10,7 @@ import {
   listTasks,
   loadTask,
   updateTaskStatus
-} from "../services/tasks.js";
+} from "../../services/tasks.js";
 
 export function registerTaskRoutes(app: AppInstance) {
   app.post("/tasks", async (request) => {

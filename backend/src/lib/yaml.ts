@@ -64,7 +64,7 @@ export function parseScopeYaml(text: string) {
 
 export function parseToolRegistryYaml(text: string) {
   const result: {
-    tools: Record<string, { command: string[]; risk?: string; requires_scope?: boolean; timeout?: number }>;
+    tools: Record<string, Record<string, unknown>>;
   } = { tools: {} };
   let inTools = false;
   let currentTool: string | null = null;
@@ -85,7 +85,7 @@ export function parseToolRegistryYaml(text: string) {
     }
     if (line.startsWith("  ") && !line.startsWith("    ") && trimmed.endsWith(":")) {
       currentTool = trimmed.slice(0, -1);
-      result.tools[currentTool] = { command: [] };
+      result.tools[currentTool] = {};
       continue;
     }
     if (currentTool && line.startsWith("    ") && trimmed.includes(":")) {
@@ -96,15 +96,7 @@ export function parseToolRegistryYaml(text: string) {
       if (!tool) {
         continue;
       }
-      if (key === "command") {
-        tool.command = Array.isArray(value) ? value.map(String) : [String(value)];
-      } else if (key === "requires_scope") {
-        tool.requires_scope = Boolean(value);
-      } else if (key === "timeout") {
-        tool.timeout = Number(value);
-      } else if (key === "risk") {
-        tool.risk = String(value);
-      }
+      tool[key ?? ""] = value;
     }
   }
 

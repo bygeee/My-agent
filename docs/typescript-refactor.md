@@ -7,7 +7,9 @@ The active backend runtime has been rewritten under `backend/src` and now runs a
 - Root workspace: `package.json`
 - Backend package: `backend/package.json`
 - CLI bootstrap: `backend/src/cli.ts`
+- CLI command modules: `backend/src/cli/commands/*`
 - Shared local services: `backend/src/services/*`
+- Tool contract and dispatcher: `backend/src/tool/*`
 - Compatibility server bootstrap: `backend/src/index.ts`
 - Compatibility HTTP server and route wiring: `backend/src/server.ts`
 
@@ -16,13 +18,15 @@ The active backend runtime has been rewritten under `backend/src` and now runs a
 Run from repo root:
 
 ```bash
-npm run cli -- --help
-npm run cli -- health
-npm run cli -- task create --prompt "analyze this binary"
-npm run cli -- task list
+node scripts/ctf-agent.mjs help
+node scripts/ctf-agent.mjs health
+node scripts/ctf-agent.mjs task create --prompt "analyze this binary"
+node scripts/ctf-agent.mjs chat --prompt "analyze this binary"
+node scripts/ctf-agent.mjs task list
 ```
 
-`npm run dev` and `npm run start` both invoke the CLI entrypoint.
+`npm run dev` and `npm run start` both invoke the CLI entrypoint for simple
+positional commands. Use `node scripts/ctf-agent.mjs ...` when passing CLI flags.
 
 Compatibility HTTP server:
 
@@ -34,6 +38,8 @@ npm run serve
 
 - FastAPI routes were ported to TypeScript route modules on Node's built-in HTTP server.
 - Local task, hub, report, and tool behavior now lives in shared service modules used by both the CLI and compatibility routes.
+- CLI logic is split into argument parsing, output formatting, help text, and command modules.
+- Tool definitions are loaded from `config/tools.yaml` as explicit manifests instead of ad-hoc command entries.
 - Pydantic validation was replaced with local request parsers.
 - File-backed task, report, hub-message, audit, policy, scope, and tool-dispatch behavior was preserved.
 - The backend is compiled with `tsc` and runs emitted JavaScript from `backend/dist`.

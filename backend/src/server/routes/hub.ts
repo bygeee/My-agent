@@ -1,8 +1,8 @@
-import type { AppInstance } from "../server.js";
-import { parseOrThrow } from "../lib/http.js";
-import { requireToken } from "../core/auth.js";
-import { hubMessageSchema } from "../types/hub.js";
-import { getHubInfo, listHubChannels, listHubMessages, sendHubMessage } from "../services/hub.js";
+import type { AppInstance } from "../../server.js";
+import { parseOrThrow } from "../../lib/http.js";
+import { requireToken } from "../../core/auth.js";
+import { hubMessageSchema } from "../../types/hub.js";
+import { getHubInfo, listHubChannels, listHubMessages, sendHubMessage } from "../../services/hub.js";
 
 export function registerHubRoutes(app: AppInstance) {
   app.get("/hub/info", async (request) => {

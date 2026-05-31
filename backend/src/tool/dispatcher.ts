@@ -4,21 +4,10 @@ import { env } from "../lib/env.js";
 import { PolicyGate } from "../core/policy.js";
 import { ScopeValidator } from "../core/scope.js";
 import { ToolRegistry } from "./registry.js";
+import type { ToolResult } from "./definition.js";
 import type { ToolRunRequest } from "../types/tool.js";
 
 const dangerousArgPattern = /[;&|`$]|\.\.\/|\/etc\/|\/proc\/|\/sys\//;
-const maxOutput = 20000;
-
-type ToolResult = {
-  allowed: boolean;
-  error_code?: string;
-  error?: string;
-  tool?: string;
-  exit_code?: number | null;
-  output?: string;
-  truncated?: boolean;
-  timeout_used?: number;
-};
 
 export class ToolDispatcher {
   private readonly registry = new ToolRegistry();
@@ -26,24 +15,12 @@ export class ToolDispatcher {
   private readonly policy = new PolicyGate();
 
   private error(code: string, message: string): ToolResult {
-    return { allowed: false, error_code: code, error: message };
-  }
-
-  private validateArgs(args: string[]) {
-    for (const arg of args) {
-      if (dangerousArgPattern.test(arg)) {
-        return `argument contains forbidden characters: ${arg.slice(0, 30)}`;
-      }
-      if (arg.length > 500) {
-        return "argument too long";
-      }
-    }
-    return null;
+    return { allowed: false, error_code: code, error: message, summary: message };
   }
 
   run(request: ToolRunRequest): ToolResult {
-    const meta = this.registry.get(request.tool);
-    if (!meta) {
+    const tool = this.registry.get(request.tool);
+    if (!tool) {
       return this.error("unknown_tool", `tool '${request.tool}' not found in registry`);
     }
 
@@ -59,7 +36,7 @@ export class ToolDispatcher {
       }
     }
 
-    if (meta.requires_scope) {
+    if (tool.requires_scope) {
       if (!request.target) {
         return this.error("scope_missing", "this tool requires a target within allowed scope");
       }
@@ -69,20 +46,20 @@ export class ToolDispatcher {
       }
     }
 
-    const argError = this.validateArgs(request.args);
+    const argError = validateArgs(request.args, tool.max_args, tool.max_arg_length);
     if (argError) {
       return this.error("invalid_args", argError);
     }
 
-    const command = [...meta.command];
+    const command = [...tool.command];
 
     if (request.artifact_path) {
       const safeName = path.basename(request.artifact_path);
       if (!safeName || safeName.startsWith(".")) {
         return this.error("invalid_artifact", "artifact path is invalid");
       }
-      const artifactPath = path.posix.join(env.uploadsDir, safeName);
-      if (!artifactPath.startsWith(`${env.uploadsDir.replace(/\/$/, "")}/`)) {
+      const artifactPath = path.join(env.uploadsDir, safeName);
+      if (!artifactPath.startsWith(`${env.uploadsDir.replace(/[\\/]+$/, "")}${path.sep}`)) {
         return this.error("invalid_artifact", "artifact path escapes sandbox");
       }
       command.push(artifactPath);
@@ -92,9 +69,8 @@ export class ToolDispatcher {
       command.push(request.target);
     }
 
-    command.push(...request.args.slice(0, 8));
+    command.push(...request.args.slice(0, tool.max_args));
 
-    const timeout = Number(meta.timeout ?? 30);
     const [binary, ...args] = command;
     if (!binary) {
       return this.error("invalid_tool", "tool command is empty");
@@ -103,12 +79,12 @@ export class ToolDispatcher {
     try {
       const result = spawnSync(binary, args, {
         cwd: env.workspacesDir,
-        timeout: timeout * 1000,
+        timeout: tool.timeout * 1000,
         encoding: "utf8"
       });
       if (result.error) {
         if (result.error.name === "ETIMEDOUT") {
-          return this.error("timeout", `tool exceeded ${timeout}s timeout`);
+          return this.error("timeout", `tool exceeded ${tool.timeout}s timeout`);
         }
         if (/ENOENT/.test(result.error.message)) {
           return this.error("tool_not_found", "binary not available in local runtime");
@@ -116,17 +92,19 @@ export class ToolDispatcher {
         return this.error("exec_error", result.error.message.slice(0, 200));
       }
       const rawOutput = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+      const output = rawOutput.slice(0, tool.output_limit);
       return {
         allowed: true,
         tool: request.tool,
         exit_code: result.status,
-        output: rawOutput.slice(0, maxOutput),
-        truncated: rawOutput.length > maxOutput,
-        timeout_used: timeout
+        output,
+        summary: `${request.tool} exited with code ${result.status ?? "unknown"}`,
+        truncated: rawOutput.length > tool.output_limit,
+        timeout_used: tool.timeout
       };
     } catch (error) {
       if (error instanceof Error && error.name === "ETIMEDOUT") {
-        return this.error("timeout", `tool exceeded ${timeout}s timeout`);
+        return this.error("timeout", `tool exceeded ${tool.timeout}s timeout`);
       }
       if (error instanceof Error && /ENOENT/.test(error.message)) {
         return this.error("tool_not_found", "binary not available in local runtime");
@@ -134,4 +112,19 @@ export class ToolDispatcher {
       return this.error("exec_error", error instanceof Error ? error.message.slice(0, 200) : "unknown exec error");
     }
   }
+}
+
+function validateArgs(args: string[], maxArgs: number, maxArgLength: number) {
+  if (args.length > maxArgs) {
+    return `too many arguments; maximum is ${maxArgs}`;
+  }
+  for (const arg of args) {
+    if (dangerousArgPattern.test(arg)) {
+      return `argument contains forbidden characters: ${arg.slice(0, 30)}`;
+    }
+    if (arg.length > maxArgLength) {
+      return `argument too long; maximum is ${maxArgLength}`;
+    }
+  }
+  return null;
 }
