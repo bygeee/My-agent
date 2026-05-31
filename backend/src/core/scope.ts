@@ -38,6 +38,14 @@ export class ScopeValidator {
       return { allowed: false, reason: "empty target" };
     }
 
+    const envAllowed = (process.env.Z3GH0NE_ALLOWED_TARGETS ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (envAllowed.includes(host)) {
+      return { allowed: true, reason: "host matched runtime scope" };
+    }
+
     for (const entry of this.config.allowed_targets ?? []) {
       if (!entry.value || !entry.type) {
         continue;

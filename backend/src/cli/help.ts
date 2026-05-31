@@ -26,15 +26,15 @@ Global options:
   --help, -h       Show this help.
 
 Examples:
-  node scripts/ctf-agent.mjs task create --prompt "analyze ./sample"
-  node scripts/ctf-agent.mjs chat --prompt "analyze ./sample"
-  node scripts/ctf-agent.mjs chat --task 85847591-876d-4866-9714-77fbcf736cd5
-  node scripts/ctf-agent.mjs task list
-  node scripts/ctf-agent.mjs tool list
-  node scripts/ctf-agent.mjs hub send --channel handoff --message "local CLI is active"
+  bun run dev
+  bun run cli -- task create --prompt "analyze ./sample"
+  bun run cli -- chat --prompt "analyze ./sample"
+  bun run cli -- chat --task 85847591-876d-4866-9714-77fbcf736cd5
+  bun run cli -- task list
+  bun run cli -- tool list
+  bun run cli -- hub send --channel handoff --message "local CLI is active"
 
 Notes:
-  npm run cli is available for simple positional commands, but npm may consume
-  option-looking --flags before they reach the CLI.
+  bun run dev opens the persistent chat UI directly.
 `);
 }

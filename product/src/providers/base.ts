@@ -1,4 +1,5 @@
 export type LLMResponse = {
+  id?: string | null;
   text: string;
   model: string;
   usage: Record<string, unknown>;
@@ -28,15 +29,21 @@ export class LocalAgentProvider implements BaseProvider {
 }
 
 export class OpenAICompatibleProvider implements BaseProvider {
-  readonly name = "openai_compatible";
+  readonly name = "openai_responses";
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly model: string;
 
   constructor(
-    apiKey = process.env.Z3GH0NE_OPENAI_KEY ?? "",
-    baseUrl = process.env.Z3GH0NE_OPENAI_BASE_URL ?? "https://api.openai.com/v1",
-    model = process.env.Z3GH0NE_OPENAI_MODEL ?? "gpt-4o"
+    apiKey = process.env.Z3GH0NE_OPENAI_API_KEY ?? process.env.Z3GH0NE_OPENAI_KEY ?? process.env.OPENAI_API_KEY ?? "",
+    baseUrl = process.env.Z3GH0NE_OPENAI_API_URL
+      ?? process.env.Z3GH0NE_OPENAI_BASE_URL
+      ?? process.env.OPENAI_BASE_URL
+      ?? "https://api.psydo.top",
+    model = process.env.Z3GH0NE_OPENAI_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-5.4",
+    private readonly reasoningEffort = process.env.Z3GH0NE_OPENAI_REASONING_EFFORT
+      ?? process.env.OPENAI_REASONING_EFFORT
+      ?? "xhigh"
   ) {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl;
@@ -53,7 +60,7 @@ export class OpenAICompatibleProvider implements BaseProvider {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      const response = await fetch(resolveResponsesUrl(this.baseUrl), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -61,19 +68,23 @@ export class OpenAICompatibleProvider implements BaseProvider {
         },
         body: JSON.stringify({
           model: this.model,
-          max_tokens: maxTokens,
-          messages: [
-            { role: "system", content: system || "You are z3gh0ne, a security analysis assistant." },
-            { role: "user", content: prompt }
-          ]
+          instructions: system || "You are z3gh0ne, a security analysis assistant.",
+          input: prompt,
+          reasoning: {
+            effort: this.reasoningEffort
+          },
+          max_output_tokens: maxTokens
         })
       });
       const data = await response.json() as {
-        choices?: Array<{ message?: { content?: string } }>;
+        id?: string;
+        output_text?: string;
+        output?: unknown;
         usage?: Record<string, unknown>;
       };
       return {
-        text: data.choices?.[0]?.message?.content ?? "",
+        id: data.id ?? null,
+        text: extractResponsesText(data),
         model: this.model,
         usage: data.usage ?? {},
         raw: data as Record<string, unknown>
@@ -82,6 +93,45 @@ export class OpenAICompatibleProvider implements BaseProvider {
       return { text: `[error: ${String(error).slice(0, 200)}]`, model: this.model, usage: {} };
     }
   }
+}
+
+function resolveResponsesUrl(baseUrl: string) {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  if (normalized.endsWith("/responses")) {
+    return normalized;
+  }
+  if (normalized.endsWith("/v1")) {
+    return `${normalized}/responses`;
+  }
+  return `${normalized}/v1/responses`;
+}
+
+function extractResponsesText(data: { output_text?: string; output?: unknown }) {
+  if (typeof data.output_text === "string") {
+    return data.output_text;
+  }
+  if (!Array.isArray(data.output)) {
+    return "";
+  }
+  const chunks: string[] = [];
+  for (const item of data.output) {
+    if (!item || typeof item !== "object" || !("content" in item) || !Array.isArray(item.content)) {
+      continue;
+    }
+    for (const content of item.content) {
+      if (
+        content
+        && typeof content === "object"
+        && "type" in content
+        && content.type === "output_text"
+        && "text" in content
+        && typeof content.text === "string"
+      ) {
+        chunks.push(content.text);
+      }
+    }
+  }
+  return chunks.join("");
 }
 
 export class AnthropicProvider implements BaseProvider {

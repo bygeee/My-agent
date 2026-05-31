@@ -7,12 +7,12 @@
     "ctf-agent": "./dist/cli.js"
   },
   "scripts": {
-    "dev": "npm run build && node dist/cli.js",
-    "cli": "npm run build && node dist/cli.js",
-    "build": "tsc -p tsconfig.json",
-    "start": "npm run build && node dist/cli.js",
-    "serve": "npm run build && node dist/index.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "smoke": "npm run build && node dist/smoke.js"
+    "dev": "bun run src/cli.ts chat",
+    "cli": "bun run src/cli.ts",
+    "build": "bun build src/cli.ts src/index.ts src/smoke.ts --target=bun --outdir dist",
+    "start": "bun run src/cli.ts chat",
+    "serve": "bun run src/index.ts",
+    "typecheck": "bun x tsc --noEmit -p tsconfig.json",
+    "smoke": "bun run src/smoke.ts"
   }
 }

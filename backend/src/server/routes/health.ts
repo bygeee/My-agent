@@ -8,6 +8,9 @@ export function registerHealthRoutes(app: AppInstance) {
     version: "0.3.0",
     model: env.model,
     llm_mode: env.llmMode,
+    openai_api_url: env.openaiApiUrl,
+    openai_model: env.openaiModel,
+    openai_reasoning_effort: env.openaiReasoningEffort,
     hub_role: "coordination_policy_audit_handoff",
     primary_developer_agent: "external local CLI agent",
     claude_api_configured: false

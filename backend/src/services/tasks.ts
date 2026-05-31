@@ -181,6 +181,14 @@ export async function addTaskComment(taskId: string, text: string, user: string)
   return comment;
 }
 
+export async function mergeTaskResult(taskId: string, result: Record<string, unknown>) {
+  const task = await loadTask(taskId);
+  task.result = { ...(task.result ?? {}), ...result };
+  task.updated_at = nowIso();
+  await saveTask(task);
+  return task;
+}
+
 export async function addTaskArtifact(taskId: string, input: TaskArtifactInput, user: string) {
   const task = await loadTask(taskId);
   const now = nowIso();

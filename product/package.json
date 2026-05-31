@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "build": "bun build src/index.ts --target=bun --outdir dist",
+    "typecheck": "bun x tsc --noEmit -p tsconfig.json"
   }
 }

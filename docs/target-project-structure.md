@@ -2,11 +2,11 @@
 
 This document defines the target structure for the TypeScript refactor of `ctf-agent`.
 
-The project stays on npm workspaces and Node.js. Docker, container runtime files, and Docker-oriented deployment conventions are out of scope.
+The project stays on Bun workspaces and TypeScript. Docker, container runtime files, and Docker-oriented deployment conventions are out of scope.
 
 ## Goals
 
-- Keep the runtime TypeScript-first, Node.js-first, and CLI-first.
+- Keep the runtime TypeScript-first, Bun-first, and CLI-first.
 - Separate agent orchestration, sessions, tools, permissions, providers, storage, and HTTP routes.
 - Keep CTF domain logic reusable outside the HTTP server.
 - Make every tool explicit: schema, permission requirements, execution, and output format.
@@ -98,6 +98,9 @@ backend/src/
     hub.ts
     tools.ts
     reports.ts
+  prompt/
+    types.ts
+    system.ts
   runtime/
     env.ts
     paths.ts

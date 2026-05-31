@@ -5,39 +5,52 @@ TypeScript CLI workspace for local CTF/security-agent coordination.
 ## Install
 
 ```bash
-npm install
+bun install
 ```
 
 ## Start The CLI
 
 ```bash
-node scripts/ctf-agent.mjs help
-node scripts/ctf-agent.mjs health
-node scripts/ctf-agent.mjs task create --prompt "analyze this binary"
-node scripts/ctf-agent.mjs chat --prompt "analyze this binary"
-node scripts/ctf-agent.mjs task list
-node scripts/ctf-agent.mjs tool list
+bun run dev
+bun run cli -- help
+bun run cli -- health
+bun run cli -- task create --prompt "analyze this binary"
+bun run cli -- chat --prompt "analyze this binary"
+bun run cli -- task list
+bun run cli -- tool list
 ```
 
-`npm run dev`, `npm start`, and `npm run cli -- task list` are still available for
-simple positional commands. Use `node scripts/ctf-agent.mjs ...` when passing
-`--flags`, because npm may consume option-looking flags before they reach the CLI.
+The `chat` command opens a persistent terminal session. Ordinary input is saved
+to the active task and sent through the Responses API. Slash commands such as
+`/help`, `/new`, `/resume`, `/show`, `/comments`, `/verbose`, `/allow`,
+`/scope`, `/doctor`, `/prompt`, `/tools`, and `/exit` are handled locally.
+
+`bun run dev` opens chat directly. `bun run cli -- ...` runs one-off commands.
+
+Responses API defaults are read from `.env.local`:
+
+```text
+Z3GH0NE_OPENAI_API_URL=https://api.psydo.top
+Z3GH0NE_OPENAI_API_KEY=<local key>
+Z3GH0NE_OPENAI_MODEL=gpt-5.4
+Z3GH0NE_OPENAI_REASONING_EFFORT=xhigh
+```
 
 ## Common Commands
 
 ```bash
-node scripts/ctf-agent.mjs task show <task_id>
-node scripts/ctf-agent.mjs chat --task <task_id>
-node scripts/ctf-agent.mjs task status <task_id> running --comment "started"
-node scripts/ctf-agent.mjs hub send --channel handoff --message "handoff note"
-node scripts/ctf-agent.mjs hub read handoff --limit 10
-node scripts/ctf-agent.mjs report <task_id>
+bun run cli -- task show <task_id>
+bun run cli -- chat --task <task_id>
+bun run cli -- task status <task_id> running --comment "started"
+bun run cli -- hub send --channel handoff --message "handoff note"
+bun run cli -- hub read handoff --limit 10
+bun run cli -- report <task_id>
 ```
 
 Tool execution passes raw tool arguments after `--`:
 
 ```bash
-node scripts/ctf-agent.mjs tool run strings -- ./sample.bin
+bun run cli -- tool run strings -- ./sample.bin
 ```
 
 ## Source Layout
@@ -51,6 +64,7 @@ backend/src/
   server/routes/        # compatibility HTTP routes
   agent/ctf/            # CTF agent placeholders by domain
   types/                # request and domain validation types
+  prompt/               # local system prompt sections and prompt builder
 ```
 
 Tool manifests live in `config/tools.yaml`. Each tool must define:
@@ -71,12 +85,12 @@ The old HTTP server is no longer the default interaction model. It is still avai
 
 ```bash
 $env:Z3GH0NE_ADMIN_TOKEN="dev-token"
-npm run serve
+bun run serve
 ```
 
 ## Verification
 
 ```bash
-npm run typecheck
-npm run smoke
+bun run typecheck
+bun run smoke
 ```
